@@ -1,33 +1,118 @@
 import * as THREE from 'three';
 
-// init
+import { OrbitControls } from './jsm/controls/OrbitControls.js';
+import { FontLoader } from './jsm/loaders/FontLoader.js';
 
-const camera = new THREE.PerspectiveCamera(
-  70,
-  window.innerWidth / window.innerHeight,
-  0.01,
-  10
-);
-camera.position.z = 1;
+let camera, scene, renderer;
 
-const scene = new THREE.Scene();
+init();
 
-const geometry = new THREE.BoxGeometry(0.2, 0.2, 0.2);
-const material = new THREE.MeshNormalMaterial();
+function init() {
+  camera = new THREE.PerspectiveCamera(
+    45,
+    window.innerWidth / window.innerHeight,
+    1,
+    10000
+  );
+  camera.position.set(0, -400, 600);
 
-const mesh = new THREE.Mesh(geometry, material);
-scene.add(mesh);
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0xf0f0f0);
 
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setAnimationLoop(animation);
-document.body.appendChild(renderer.domElement);
+  const loader = new FontLoader();
+  loader.load('fonts/helvetiker_regular.typeface.json', function (font) {
+    const color = 0x006699;
 
-// animation
+    const matDark = new THREE.LineBasicMaterial({
+      color: color,
+      side: THREE.DoubleSide,
+    });
 
-function animation(time) {
-  mesh.rotation.x = time / 2000;
-  mesh.rotation.y = time / 1000;
+    const matLite = new THREE.MeshBasicMaterial({
+      color: color,
+      transparent: true,
+      opacity: 0.4,
+      side: THREE.DoubleSide,
+    });
 
+    const message = '   Three.js\nSimple text.';
+
+    const shapes = font.generateShapes(message, 100);
+
+    const geometry = new THREE.ShapeGeometry(shapes);
+
+    geometry.computeBoundingBox();
+
+    const xMid =
+      -0.5 * (geometry.boundingBox.max.x - geometry.boundingBox.min.x);
+
+    geometry.translate(xMid, 0, 0);
+
+    // make shape ( N.B. edge view not visible )
+
+    const text = new THREE.Mesh(geometry, matLite);
+    text.position.z = -150;
+    scene.add(text);
+
+    // make line shape ( N.B. edge view remains visible )
+
+    const holeShapes = [];
+
+    for (let i = 0; i < shapes.length; i++) {
+      const shape = shapes[i];
+
+      if (shape.holes && shape.holes.length > 0) {
+        for (let j = 0; j < shape.holes.length; j++) {
+          const hole = shape.holes[j];
+          holeShapes.push(hole);
+        }
+      }
+    }
+
+    shapes.push.apply(shapes, holeShapes);
+
+    const lineText = new THREE.Object3D();
+
+    for (let i = 0; i < shapes.length; i++) {
+      const shape = shapes[i];
+
+      const points = shape.getPoints();
+      const geometry = new THREE.BufferGeometry().setFromPoints(points);
+
+      geometry.translate(xMid, 0, 0);
+
+      const lineMesh = new THREE.Line(geometry, matDark);
+      lineText.add(lineMesh);
+    }
+
+    scene.add(lineText);
+
+    render();
+  }); //end load function
+
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  document.body.appendChild(renderer.domElement);
+
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.target.set(0, 0, 0);
+  controls.update();
+
+  controls.addEventListener('change', render);
+
+  window.addEventListener('resize', onWindowResize);
+} // end init
+
+function onWindowResize() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+
+  renderer.setSize(window.innerWidth, window.innerHeight);
+
+  render();
+}
+
+function render() {
   renderer.render(scene, camera);
 }
