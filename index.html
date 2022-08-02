@@ -1,23 +1,163 @@
-<style>
-  body {
-    background-color: #f0f0f0;
-    color: #444;
-  }
-  a {
-    color: #08f;
-  }
-</style>
-<!-- Import maps polyfill -->
-<!-- Remove this when import maps will be widely supported -->
-<script
-  async
-  src="https://unpkg.com/es-module-shims@1.3.6/dist/es-module-shims.js"
-></script>
+<!DOCTYPE html>
+<html lang="en">
 
-<script type="importmap">
-  {
-    "imports": {
-      "three": "../build/three.module.js"
+<head>
+  <title>three.js webgl - simple text from json</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+  <style>
+    body {
+      background-color: #f0f0f0;
+      color: #444;
     }
-  }
-</script>
+
+    a {
+      color: #08f;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="info">
+    <a href="#" target="_blank" rel="noopener">Navegação normal</a>
+  </div>
+
+  <!-- Import maps polyfill -->
+  <!-- Remove this when import maps will be widely supported -->
+  <script async src="https://unpkg.com/es-module-shims@1.3.6/dist/es-module-shims.js"></script>
+
+  <script type="importmap">
+			{
+				"imports": {
+					"three": "../build/three.module.js"
+				}
+			}
+		</script>
+
+  <script type="module">
+
+    import * as THREE from 'three';
+
+    import { OrbitControls } from './jsm/controls/OrbitControls.js';
+    import { FontLoader } from './jsm/loaders/FontLoader.js';
+
+    let camera, scene, renderer;
+
+    init();
+
+    function init() {
+
+      camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 10000);
+      camera.position.set(0, - 400, 600);
+
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0xf0f0f0);
+
+      const loader = new FontLoader();
+      loader.load('fonts/helvetiker_regular.typeface.json', function (font) {
+
+        const message = 'Escreva algo\ne pressione ENTER';
+
+        let shift = 0;
+
+        criarTexto(message);
+
+        function criarTexto(texto) {
+          const shapes = font.generateShapes(texto, 50);
+
+          const geometry = new THREE.ShapeGeometry(shapes);
+
+          geometry.computeBoundingBox();
+
+          const xMid = - 0.5 * (geometry.boundingBox.max.x - geometry.boundingBox.min.x);
+          const yMid = - 0.5 * (geometry.boundingBox.max.y - geometry.boundingBox.min.y) + shift;
+
+          geometry.translate(xMid, yMid, 0);
+
+          // make shape ( N.B. edge view not visible )
+
+          const color = 0x006699;
+
+          const matLite = new THREE.MeshBasicMaterial({
+            color: color,
+            transparent: false,
+            opacity: 0.4,
+            side: THREE.DoubleSide
+          });
+
+          const text = new THREE.Mesh(geometry, matLite);
+          text.position.z = - 150;
+          scene.add(text);
+
+          shift += 50;
+        }
+
+        document.querySelectorAll('body').forEach((canvas) => {
+
+          let text = '';
+
+          canvas.addEventListener('focus', () => {
+            console.log('has focus press a key');
+          });
+
+          canvas.addEventListener('blur', () => {
+            console.log('lost focus');
+          });
+
+          canvas.addEventListener('keydown', (e) => {
+            console.log(`keyCode: ${e.keyCode}`);
+            console.log(`char: ${e.char}`);
+            console.log(`key: ${e.key}`);
+
+            if (e.keyCode === 13) {
+              criarTexto(text);
+              render();
+
+              text = '';
+            } else {
+              text += e.key;
+            }
+          });
+        });
+
+        render();
+
+      }); //end load function
+
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setPixelRatio(window.devicePixelRatio);
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      document.body.appendChild(renderer.domElement);
+
+      const controls = new OrbitControls(camera, renderer.domElement);
+      controls.target.set(0, 0, 0);
+      controls.update();
+
+      controls.addEventListener('change', render);
+
+      window.addEventListener('resize', onWindowResize);
+
+    } // end init
+
+    function onWindowResize() {
+
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+
+      renderer.setSize(window.innerWidth, window.innerHeight);
+
+      render();
+
+    }
+
+    function render() {
+
+      renderer.render(scene, camera);
+
+    }
+
+  </script>
+
+</body>
+
+</html>
